@@ -66,7 +66,6 @@ def start_etl_log(**context):
 start_log = PythonOperator(
     task_id='start_etl_log',
     python_callable=start_etl_log,
-    provide_context=True,
     dag=dag
 )
 
@@ -102,7 +101,6 @@ def extract_customers(**context):
 extract_customers_task = PythonOperator(
     task_id='extract_customers',
     python_callable=extract_customers,
-    provide_context=True,
     dag=dag
 )
 
@@ -134,7 +132,6 @@ def extract_products(**context):
 extract_products_task = PythonOperator(
     task_id='extract_products',
     python_callable=extract_products,
-    provide_context=True,
     dag=dag
 )
 
@@ -170,7 +167,6 @@ def extract_sales(**context):
 extract_sales_task = PythonOperator(
     task_id='extract_sales',
     python_callable=extract_sales,
-    provide_context=True,
     dag=dag
 )
 
@@ -226,7 +222,6 @@ def load_dimensions(**context):
 load_dimensions_task = PythonOperator(
     task_id='load_dimensions',
     python_callable=load_dimensions,
-    provide_context=True,
     dag=dag
 )
 
@@ -301,7 +296,6 @@ def transform_and_load_facts(**context):
 transform_load_facts_task = PythonOperator(
     task_id='transform_and_load_facts',
     python_callable=transform_and_load_facts,
-    provide_context=True,
     dag=dag
 )
 
@@ -375,7 +369,6 @@ def create_daily_summary(**context):
 create_summary_task = PythonOperator(
     task_id='create_daily_summary',
     python_callable=create_daily_summary,
-    provide_context=True,
     dag=dag
 )
 
@@ -421,7 +414,6 @@ def validate_data_quality(**context):
 validate_task = PythonOperator(
     task_id='validate_data_quality',
     python_callable=validate_data_quality,
-    provide_context=True,
     dag=dag
 )
 
@@ -452,7 +444,6 @@ def complete_etl_log(**context):
 complete_log_task = PythonOperator(
     task_id='complete_etl_log',
     python_callable=complete_etl_log,
-    provide_context=True,
     dag=dag
 )
 
@@ -494,7 +485,6 @@ def get_summary_stats(**context):
 get_stats_task = PythonOperator(
     task_id='get_summary_stats',
     python_callable=get_summary_stats,
-    provide_context=True,
     dag=dag
 )
 

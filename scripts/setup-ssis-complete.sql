@@ -1,43 +1,17 @@
 -- ============================================
--- COMPLETE SSIS SETUP FOR AIRFLOW-SSIS-PROVIDER
--- Run this on Windows Host SQL Server
+-- SETUP SSIS CATALOG (SSISDB)
 -- ============================================
-
-USE master;
-GO
-
--- ============================================
--- STEP 1: CREATE SSISDB CATALOG
--- ============================================
-IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'SSISDB')
-BEGIN
-    PRINT 'Creating SSISDB Catalog...';
-    
-    -- Enable CLR
-    EXEC sp_configure 'clr enabled', 1;
-    RECONFIGURE;
-    
-    -- Create catalog
-    EXEC catalog.create_catalog 
-        @password = N'TQP@91204';
-    
-    PRINT '✓ SSISDB Catalog created';
-END
-ELSE
-BEGIN
-    PRINT '✓ SSISDB Catalog already exists';
-END
-GO
 
 USE SSISDB;
 GO
 
 -- ============================================
--- STEP 2: CREATE FOLDER
+-- 1. CREATE FOLDER FOR PROJECTS
 -- ============================================
-DECLARE @folder_name NVARCHAR(128) = N'AirflowDemo';
 DECLARE @folder_id BIGINT;
+DECLARE @folder_name NVARCHAR(128) = N'AirflowDemo';
 
+-- Check if folder exists
 IF NOT EXISTS (SELECT 1 FROM catalog.folders WHERE name = @folder_name)
 BEGIN
     EXEC catalog.create_folder 
@@ -45,19 +19,25 @@ BEGIN
         @folder_id = @folder_id OUTPUT;
     
     PRINT 'Folder created: ' + @folder_name;
+    PRINT 'Folder ID: ' + CAST(@folder_id AS NVARCHAR(20));
 END
 ELSE
 BEGIN
+    SELECT @folder_id = folder_id 
+    FROM catalog.folders 
+    WHERE name = @folder_name;
+    
     PRINT 'Folder already exists: ' + @folder_name;
 END
 GO
 
 -- ============================================
--- STEP 3: CREATE ENVIRONMENT
+-- 2. CREATE ENVIRONMENT
 -- ============================================
 DECLARE @environment_name NVARCHAR(128) = N'Production';
 DECLARE @folder_name NVARCHAR(128) = N'AirflowDemo';
 
+-- Check if environment exists
 IF NOT EXISTS (
     SELECT 1 
     FROM catalog.environments e
@@ -67,7 +47,7 @@ IF NOT EXISTS (
 BEGIN
     EXEC catalog.create_environment
         @environment_name = @environment_name,
-        @environment_description = N'Production environment for Airflow SSIS integration',
+        @environment_description = N'Production environment for Airflow-triggered packages',
         @folder_name = @folder_name;
     
     PRINT 'Environment created: ' + @environment_name;
@@ -79,147 +59,134 @@ END
 GO
 
 -- ============================================
--- STEP 4: CREATE ENVIRONMENT VARIABLES
+-- 3. ADD ENVIRONMENT VARIABLES
 -- ============================================
 DECLARE @folder_name NVARCHAR(128) = N'AirflowDemo';
 DECLARE @environment_name NVARCHAR(128) = N'Production';
+DECLARE @var_name NVARCHAR(128);
+DECLARE @var_value SQL_VARIANT;
 
--- Variable 1: ExecutionDate
+-- Source Connection String
+SET @var_name = N'SourceConnectionString';
+SET @var_value = N'Data Source=sqlserver-source,1433;Initial Catalog=SalesDB;User ID=sa;Password=TQP@91204;';
+
 IF NOT EXISTS (
-    SELECT 1 FROM catalog.environment_variables ev
-    INNER JOIN catalog.environments e ON ev.environment_id = e.environment_id
-    INNER JOIN catalog.folders f ON e.folder_id = f.folder_id
-    WHERE ev.name = 'ExecutionDate' AND e.name = @environment_name AND f.name = @folder_name
+    SELECT 1 FROM catalog.environment_variables 
+    WHERE environment_id = (
+        SELECT environment_id FROM catalog.environments 
+        WHERE name = @environment_name AND folder_id = (
+            SELECT folder_id FROM catalog.folders WHERE name = @folder_name
+        )
+    ) AND name = @var_name
 )
 BEGIN
     EXEC catalog.create_environment_variable
-        @variable_name = N'ExecutionDate',
+        @variable_name = @var_name,
         @sensitive = 0,
-        @description = N'Date to process data for',
+        @description = N'Source database connection string',
         @environment_name = @environment_name,
         @folder_name = @folder_name,
-        @value = N'2025-11-26',
+        @value = @var_value,
         @data_type = N'String';
-    PRINT '✓ Variable created: ExecutionDate';
+    PRINT 'Variable created: ' + @var_name;
 END
 
--- Variable 2: BatchSize
+-- Target Connection String
+SET @var_name = N'TargetConnectionString';
+SET @var_value = N'Host=postgres-target;Port=5432;Database=analytics_db;Username=analytics;Password=analytics123;';
+
 IF NOT EXISTS (
-    SELECT 1 FROM catalog.environment_variables ev
-    INNER JOIN catalog.environments e ON ev.environment_id = e.environment_id
-    INNER JOIN catalog.folders f ON e.folder_id = f.folder_id
-    WHERE ev.name = 'BatchSize' AND e.name = @environment_name AND f.name = @folder_name
+    SELECT 1 FROM catalog.environment_variables 
+    WHERE environment_id = (
+        SELECT environment_id FROM catalog.environments 
+        WHERE name = @environment_name AND folder_id = (
+            SELECT folder_id FROM catalog.folders WHERE name = @folder_name
+        )
+    ) AND name = @var_name
 )
 BEGIN
     EXEC catalog.create_environment_variable
-        @variable_name = N'BatchSize',
+        @variable_name = @var_name,
+        @sensitive = 0,
+        @description = N'Target database connection string',
+        @environment_name = @environment_name,
+        @folder_name = @folder_name,
+        @value = @var_value,
+        @data_type = N'String';
+    PRINT 'Variable created: ' + @var_name;
+END
+
+-- Batch Size
+SET @var_name = N'BatchSize';
+SET @var_value = 1000;
+
+IF NOT EXISTS (
+    SELECT 1 FROM catalog.environment_variables 
+    WHERE environment_id = (
+        SELECT environment_id FROM catalog.environments 
+        WHERE name = @environment_name AND folder_id = (
+            SELECT folder_id FROM catalog.folders WHERE name = @folder_name
+        )
+    ) AND name = @var_name
+)
+BEGIN
+    EXEC catalog.create_environment_variable
+        @variable_name = @var_name,
         @sensitive = 0,
         @description = N'Number of rows per batch',
         @environment_name = @environment_name,
         @folder_name = @folder_name,
-        @value = 1000,
+        @value = @var_value,
         @data_type = N'Int32';
-    PRINT '✓ Variable created: BatchSize';
-END
-
--- Variable 3: Environment
-IF NOT EXISTS (
-    SELECT 1 FROM catalog.environment_variables ev
-    INNER JOIN catalog.environments e ON ev.environment_id = e.environment_id
-    INNER JOIN catalog.folders f ON e.folder_id = f.folder_id
-    WHERE ev.name = 'Environment' AND e.name = @environment_name AND f.name = @folder_name
-)
-BEGIN
-    EXEC catalog.create_environment_variable
-        @variable_name = N'Environment',
-        @sensitive = 0,
-        @description = N'Deployment environment',
-        @environment_name = @environment_name,
-        @folder_name = @folder_name,
-        @value = N'Production',
-        @data_type = N'String';
-    PRINT '✓ Variable created: Environment';
-END
-
--- Variable 4: SourceConnectionString
-IF NOT EXISTS (
-    SELECT 1 FROM catalog.environment_variables ev
-    INNER JOIN catalog.environments e ON ev.environment_id = e.environment_id
-    INNER JOIN catalog.folders f ON e.folder_id = f.folder_id
-    WHERE ev.name = 'SourceConnectionString' AND e.name = @environment_name AND f.name = @folder_name
-)
-BEGIN
-    EXEC catalog.create_environment_variable
-        @variable_name = N'SourceConnectionString',
-        @sensitive = 1,  -- Sensitive data
-        @description = N'Source database connection string',
-        @environment_name = @environment_name,
-        @folder_name = @folder_name,
-        @value = N'Data Source=localhost;Initial Catalog=SalesDB;User ID=sa;Password=YourStrong@Passw0rd;',
-        @data_type = N'String';
-    PRINT '✓ Variable created: SourceConnectionString';
+    PRINT 'Variable created: ' + @var_name;
 END
 
 GO
 
 -- ============================================
--- STEP 5: VERIFICATION
+-- 4. VERIFY SETUP
 -- ============================================
-PRINT '';
 PRINT '============================================';
-PRINT 'SSIS CATALOG SETUP COMPLETE';
+PRINT 'SSISDB SETUP VERIFICATION';
 PRINT '============================================';
-PRINT '';
 
--- Display folders
-PRINT 'Folders:';
+-- List folders
 SELECT 
     folder_id,
-    name,
+    name as folder_name,
     description,
     created_time
 FROM catalog.folders
 WHERE name = 'AirflowDemo';
 
-PRINT '';
-PRINT 'Environments:';
+-- List environments
 SELECT 
     e.environment_id,
     f.name as folder_name,
     e.name as environment_name,
-    e.description
+    e.description,
+    e.created_time
 FROM catalog.environments e
 INNER JOIN catalog.folders f ON e.folder_id = f.folder_id
 WHERE f.name = 'AirflowDemo';
 
-PRINT '';
-PRINT 'Environment Variables:';
+-- List environment variables
 SELECT 
     f.name as folder_name,
     e.name as environment_name,
     v.name as variable_name,
     v.type,
-    v.sensitive,
-    CASE WHEN v.sensitive = 1 THEN '***HIDDEN***' ELSE CAST(v.value AS NVARCHAR(MAX)) END as value
+    v.description,
+    v.value,
+    v.sensitive
 FROM catalog.environment_variables v
 INNER JOIN catalog.environments e ON v.environment_id = e.environment_id
 INNER JOIN catalog.folders f ON e.folder_id = f.folder_id
 WHERE f.name = 'AirflowDemo'
 ORDER BY e.name, v.name;
 
-PRINT '';
 PRINT '============================================';
-PRINT 'NEXT STEPS:';
-PRINT '1. Create SSIS package in Visual Studio';
-PRINT '2. Deploy package to SSISDB/AirflowDemo folder';
-PRINT '3. Configure Airflow connection';
-PRINT '4. Test execution from Airflow';
+PRINT 'Setup completed successfully!';
+PRINT 'Next step: Deploy SSIS packages to this folder';
 PRINT '============================================';
 GO
-
-SELECT * FROM sys.assemblies WHERE name = 'ISSERVER';
-
-EXEC sp_configure 'clr enabled', 1;
-RECONFIGURE;
-
-EXEC catalog.create_catalog @password = 'TQP@91204';
