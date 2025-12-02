@@ -2,8 +2,8 @@
 -- INITIALIZE POSTGRESQL TARGET DATABASE
 -- ============================================
 
--- Connect to analytics_db (will be created by Docker)
-\c analytics_db;
+-- Connect to analytics (will be created by Docker)
+\c analytics;
 
 -- ============================================
 -- SCHEMA: dwh (Data Warehouse)
