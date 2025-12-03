@@ -16,7 +16,7 @@ CREATE SCHEMA IF NOT EXISTS dwh;
 DROP TABLE IF EXISTS dwh.dim_customers CASCADE;
 CREATE TABLE dwh.dim_customers (
     customer_key SERIAL PRIMARY KEY,
-    customer_id INTEGER NOT NULL,
+    customer_id INTEGER NOT NULL UNIQUE,
     customer_name VARCHAR(100),
     email VARCHAR(100),
     city VARCHAR(50),
@@ -34,7 +34,7 @@ CREATE INDEX idx_dim_customers_id ON dwh.dim_customers(customer_id);
 DROP TABLE IF EXISTS dwh.dim_products CASCADE;
 CREATE TABLE dwh.dim_products (
     product_key SERIAL PRIMARY KEY,
-    product_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL UNIQUE,
     product_name VARCHAR(100),
     category VARCHAR(50),
     unit_price NUMERIC(10,2),
@@ -50,7 +50,7 @@ CREATE INDEX idx_dim_products_id ON dwh.dim_products(product_id);
 DROP TABLE IF EXISTS dwh.fact_sales CASCADE;
 CREATE TABLE dwh.fact_sales (
     sale_key SERIAL PRIMARY KEY,
-    sale_id INTEGER NOT NULL,
+    sale_id INTEGER NOT NULL UNIQUE,
     customer_key INTEGER REFERENCES dwh.dim_customers(customer_key),
     product_key INTEGER REFERENCES dwh.dim_products(product_key),
     sale_date DATE NOT NULL,
