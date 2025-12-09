@@ -16,7 +16,7 @@ services:
       - postgres-source-crm-data:/var/lib/postgresql/data
       - ./scripts/init-postgres-source-crm.sql:/docker-entrypoint-initdb.d/init-postgres-source-crm.sql:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "crm_user"]
+      test: ["CMD", "pg_isready", "-U", "crm_user", "-d", "crm_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,7 +40,7 @@ services:
       - postgres-source-erp-data:/var/lib/postgresql/data
       - ./scripts/init-postgres-source-erp.sql:/docker-entrypoint-initdb.d/init-postgres-source-erp.sql:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "erp_user"]
+      test: ["CMD", "pg_isready", "-U", "erp_user", "-d", "erp_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -64,7 +64,7 @@ services:
       - postgres-metadata-data:/var/lib/postgresql/data
       - ./scripts/init-postgres-metadata.sql:/docker-entrypoint-initdb.d/init-postgres-metadata.sql:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "metadata_user"]
+      test: ["CMD", "pg_isready", "-U", "metadata_user", "-d", "metadata_db"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -38,7 +38,7 @@ from dags.datasets_config import (
     dag_id='source_to_staging',
     default_args=DEFAULT_ARGS,
     description='Incremental extraction from sources to staging with LSET/CET',
-    schedule='0 0 * * *',  # Daily at midnight
+    # schedule='0 0 * * *',  # Daily at midnight
     start_date=datetime(2024, 11, 1),
     catchup=False,
     max_active_runs=1,
